@@ -9,13 +9,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    @media print {
-      body * { visibility: hidden; }
-      #printableReceipt, #printableReceipt * { visibility: visible; }
-      #printableReceipt { position: absolute; left: 0; top: 0; width: 100%; }
-    }
-  </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
 
@@ -126,7 +119,6 @@
               </button>
             </div>
 
-            <!-- Dish Grid -->
             <div id="posDishGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
           </div>
 
@@ -207,4 +199,255 @@
         </div>
 
         <!-- SETTINGS TAB -->
-        <div id="tabSettings" class
+        <div id="tabSettings" class="tab-content hidden">
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 max-w-2xl mx-auto">
+            <h3 class="font-bold text-gray-800 text-base mb-4"><i class="fa-solid fa-cloud text-blue-900 mr-2"></i> Firebase Cloud Sync</h3>
+            <form onsubmit="saveFirebaseSettings(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">API Key</label>
+                <input type="text" id="cfgApiKey" class="w-full px-3 py-2 border border-gray-300 rounded text-xs font-mono">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Database URL</label>
+                <input type="text" id="cfgDbUrl" class="w-full px-3 py-2 border border-gray-300 rounded text-xs font-mono">
+              </div>
+              <button type="submit" class="bg-blue-900 text-white font-bold px-5 py-2 rounded text-xs">
+                Save & Sync
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ADD DISH MODAL -->
+  <div id="addDishModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-blue-900 text-base"><i class="fa-solid fa-utensils mr-2"></i> Add New Menu Dish</h3>
+        <button onclick="closeAddDishModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
+      </div>
+      <form onsubmit="saveNewDish(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Dish / Item Name</label>
+          <input type="text" id="newDishName" required placeholder="e.g. Pork Sinigang" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Category</label>
+          <select id="newDishCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <option value="Dishes">Dishes</option>
+            <option value="Rice">Rice</option>
+            <option value="Merienda">Merienda</option>
+            <option value="Drinks">Drinks</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Full Price (₱)</label>
+            <input type="number" id="newDishFullPrice" required placeholder="120" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Half Price (₱)</label>
+            <input type="number" id="newDishHalfPrice" required placeholder="65" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Initial Stock Count</label>
+          <input type="number" id="newDishStock" required placeholder="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeAddDishModal()" class="px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-lg text-xs">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-blue-900 text-white font-bold rounded-lg text-xs hover:bg-blue-950">Add to Menu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_USERS = {
+      "admin": { password: "admin123", role: "Admin", name: "Administrator" },
+      "cashier_bgc": { password: "123456", role: "Cashier", name: "BGC Cashier" },
+      "cashier_moa": { password: "123456", role: "Cashier", name: "MOA Cashier" }
+    };
+
+    const INITIAL_PRODUCTS = [
+      { id: "p1", name: "Pork Adobo", category: "Dishes", fullPrice: 120, halfPrice: 65, stock: 40 },
+      { id: "p2", name: "Chicken Inasal", category: "Dishes", fullPrice: 130, halfPrice: 70, stock: 35 },
+      { id: "p3", name: "Extra White Rice", category: "Rice", fullPrice: 20, halfPrice: 12, stock: 100 }
+    ];
+
+    let currentCart = [];
+    let products = JSON.parse(localStorage.getItem("pp_products")) || INITIAL_PRODUCTS;
+
+    function initAuth() {
+      if (!localStorage.getItem("pp_users")) {
+        localStorage.setItem("pp_users", JSON.stringify(DEFAULT_USERS));
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      initAuth();
+      const u = document.getElementById("loginUsername").value.trim().toLowerCase();
+      const p = document.getElementById("loginPassword").value.trim();
+      const alertBox = document.getElementById("loginAlert");
+
+      const users = JSON.parse(localStorage.getItem("pp_users")) || DEFAULT_USERS;
+
+      if (users[u] && users[u].password === p) {
+        const user = users[u];
+        sessionStorage.setItem("pp_session", JSON.stringify(user));
+        alertBox.classList.add("hidden");
+        showDashboard(user);
+      } else {
+        alertBox.textContent = "Invalid username or password. Ensure 'admin' and 'admin123' are typed in lowercase.";
+        alertBox.classList.remove("hidden");
+      }
+    }
+
+    function showDashboard(user) {
+      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("mainDashboard").classList.remove("hidden");
+      document.getElementById("userWelcome").textContent = `Welcome, ${user.name}`;
+      document.getElementById("userRoleBadge").textContent = `Role: ${user.role}`;
+      renderPosGrid();
+      renderInventoryTable();
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem("pp_session");
+      document.getElementById("mainDashboard").classList.add("hidden");
+      document.getElementById("loginSection").classList.remove("hidden");
+      document.getElementById("loginForm").reset();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(el => {
+        el.classList.remove("bg-blue-900", "text-white");
+        el.classList.add("bg-gray-200", "text-gray-700");
+      });
+
+      const btnMap = { 'pos':'tabBtnPos', 'inventory':'tabBtnInventory', 'analytics':'tabBtnAnalytics', 'settings':'tabBtnSettings' };
+      document.getElementById("tab" + tabId.charAt(0).toUpperCase() + tabId.slice(1)).classList.remove("hidden");
+      document.getElementById(btnMap[tabId]).classList.add("bg-blue-900", "text-white");
+    }
+
+    function renderPosGrid() {
+      const grid = document.getElementById("posDishGrid");
+      grid.innerHTML = products.map(p => `
+        <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <span class="text-xxs font-bold text-blue-700 uppercase">${p.category}</span>
+            <h4 class="font-bold text-gray-800 text-xs mt-0.5">${p.name}</h4>
+            <p class="text-xs font-semibold text-gray-500 mt-1">Stock: ${p.stock}</p>
+          </div>
+          <div class="mt-3 space-y-1.5">
+            <button onclick="addToCart('${p.id}', 'Full')" class="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold py-1.5 rounded text-xs">
+              Full (₱${p.fullPrice})
+            </button>
+            <button onclick="addToCart('${p.id}', 'Half')" class="w-full bg-yellow-400 hover:bg-yellow-500 text-blue-950 font-bold py-1.5 rounded text-xs">
+              Half (₱${p.halfPrice})
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderInventoryTable() {
+      const tbody = document.getElementById("inventoryTableBody");
+      tbody.innerHTML = products.map((p, idx) => `
+        <tr>
+          <td class="p-2.5 font-bold text-gray-800">${p.name}</td>
+          <td class="p-2.5 text-gray-600">${p.category}</td>
+          <td class="p-2.5 font-semibold">₱${p.fullPrice}</td>
+          <td class="p-2.5 font-semibold">₱${p.halfPrice}</td>
+          <td class="p-2.5 font-bold">${p.stock}</td>
+          <td class="p-2.5 text-center">
+            <button onclick="deleteProduct(${idx})" class="text-red-600 hover:text-red-800 font-bold">Remove</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openAddDishModal() {
+      document.getElementById("addDishModal").classList.remove("hidden");
+    }
+
+    function closeAddDishModal() {
+      document.getElementById("addDishModal").classList.add("hidden");
+    }
+
+    function saveNewDish(e) {
+      e.preventDefault();
+      const name = document.getElementById("newDishName").value.trim();
+      const category = document.getElementById("newDishCategory").value;
+      const fullPrice = parseFloat(document.getElementById("newDishFullPrice").value);
+      const halfPrice = parseFloat(document.getElementById("newDishHalfPrice").value);
+      const stock = parseInt(document.getElementById("newDishStock").value);
+
+      const newProd = { id: "p_" + Date.now(), name, category, fullPrice, halfPrice, stock };
+      products.push(newProd);
+      localStorage.setItem("pp_products", JSON.stringify(products));
+
+      closeAddDishModal();
+      e.target.reset();
+      renderPosGrid();
+      renderInventoryTable();
+    }
+
+    function deleteProduct(idx) {
+      if (confirm("Remove this dish from the menu?")) {
+        products.splice(idx, 1);
+        localStorage.setItem("pp_products", JSON.stringify(products));
+        renderPosGrid();
+        renderInventoryTable();
+      }
+    }
+
+    function addToCart(productId, portion) {
+      const prod = products.find(p => p.id === productId);
+      if (!prod) return;
+      const price = portion === 'Full' ? prod.fullPrice : prod.halfPrice;
+      const existing = currentCart.find(i => i.id === productId && i.portion === portion);
+
+      if (existing) { existing.qty += 1; }
+      else { currentCart.push({ id: productId, name: prod.name, portion, price, qty: 1 }); }
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById("cartItemsList");
+      if (currentCart.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 italic text-center py-6">No items added to cart yet.</p>`;
+        document.getElementById("cartTotalText").textContent = "₱0.00";
+        return;
+      }
+      let total = 0;
+      container.innerHTML = currentCart.map((item, idx) => {
+        const itemTotal = item.price * item.qty;
+        total += itemTotal;
+        return `
+          <div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
+            <div>
+              <p class="font-bold text-gray-800">${item.name} (${item.portion})</p>
+              <p class="text-gray-500">₱${item.price} x ${item.qty}</p>
+            </div>
+            <span class="font-bold text-blue-900">₱${itemTotal}</span>
+          </div>
+        `;
+      }).join('');
+      document.getElementById("cartTotalText").textContent = `₱${total.toFixed(2)}`;
+    }
+
+    function clearCart() { currentCart = []; renderCart(); }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initAuth();
+      const activeSession = sessionStorage.getItem("pp_session");
+      if (activeSession) showDashboard(JSON.parse(activeSession));
+    });
+  </script>
+</body>
+</html>
